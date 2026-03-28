@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Seats Alert{% endblock %}
+{% block body %}
+<h2 style="margin-top:0;font-size:1.1rem;font-weight:600;">Alerts</h2>
+{% if not alerts %}
+<p style="color:var(--muted);">No alerts yet. Create one to get started.</p>
+{% endif %}
+
+{% for a in alerts %}
+{% set st = alert_state.get(a.name, {}) %}
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;margin-bottom:1rem;">
+  <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:0.75rem;align-items:flex-start;">
+    <div>
+      <div style="font-weight:600;font-size:1.05rem;">{{ a.name }}</div>
+      <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;">
+        {% if a.get('enabled', true) %}
+        <span style="font-size:0.75rem;padding:0.15rem 0.45rem;border-radius:999px;background:#14532d55;color:var(--ok);">enabled</span>
+        {% else %}
+        <span style="font-size:0.75rem;padding:0.15rem 0.45rem;border-radius:999px;background:#444;color:var(--muted);">paused</span>
+        {% endif %}
+        {% if st.get('error') %}
+        <span style="font-size:0.75rem;padding:0.15rem 0.45rem;border-radius:999px;background:#7f1d1d55;color:var(--danger);" title="{{ st.error }}">error</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="toolbar">
+      <a class="btn small" href="{{ url_for('alert_edit', name=a.name) }}">Edit</a>
+      <form method="post" action="{{ url_for('alert_toggle', name=a.name) }}" style="display:inline;">
+        <button type="submit" class="btn small">{% if a.get('enabled', true) %}Pause{% else %}Enable{% endif %}</button>
+      </form>
+      <form method="post" action="{{ url_for('alert_delete', name=a.name) }}" style="display:inline;" onsubmit="return confirm('Delete this alert?');">
+        <button type="submit" class="btn small danger">Delete</button>
+      </form>
+    </div>
+  </div>
+  <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);display:grid;gap:0.2rem;">
+    <div>Last checked: {{ st.get('last_checked') or '—' }}</div>
+    <div>Next check: {{ st.get('next_run') or '—' }}</div>
+    <div>Last match: {{ st.get('last_triggered') or '—' }}</div>
+    <div>Total matches (notified): {{ st.get('total_matches', 0) }}</div>
+    <div>Interval: {{ a.get('interval_minutes', 30) }} min</div>
+  </div>
+  <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.origins | join(', ') }} → {{ a.destinations | join(', ') }}</span>
+    {% if a.date_range %}
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.date_range.start }} … {{ a.date_range.end }}</span>
+    {% endif %}
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.cabin | replace('_', ' ') }}</span>
+    {% if a.get('max_points') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">≤ {{ a.max_points }} pts</span>{% endif %}
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.programs | join(', ') }}</span>
+    {% if a.get('direct_only') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">direct only</span>{% endif %}
+    {% if a.get('max_duration_hours') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">≤ {{ a.max_duration_hours }}h</span>{% endif %}
+    {% if a.get('depart_after') or a.get('depart_before') %}
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">depart {{ a.get('depart_after','*') }}–{{ a.get('depart_before','*') }}</span>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{% if editing %}Edit{% else %}New{% endif %} Alert — Seats Alert{% endblock %}
+{% block body %}
+<h2 style="margin-top:0;font-size:1.1rem;font-weight:600;">{% if editing %}Edit alert{% else %}New alert{% endif %}</h2>
+
+<form method="post">
+  <div class="row">
+    <div>
+      <label for="name">Name</label>
+      {% if editing %}
+      <input type="text" id="name" name="name" value="{{ af.name }}" readonly style="opacity:0.85;">
+      {% else %}
+      <input type="text" id="name" name="name" value="{{ fill.get('name', '') if fill else '' }}" required>
+      {% endif %}
+    </div>
+    <div>
+      <label for="interval_minutes">Check interval (minutes)</label>
+      <input type="number" id="interval_minutes" name="interval_minutes" min="1" value="{{ (fill.get('interval_minutes') if fill else None) or (af.interval_minutes if af else None) or 30 }}" required>
+    </div>
+  </div>
+
+  <div class="row two">
+    <div>
+      <label for="origins_text">Origins (comma-separated IATA)</label>
+      <input type="text" id="origins_text" name="origins_text" value="{% if fill %}{{ fill.get('origins_text','') }}{% elif af %}{{ af.origins | join(', ') }}{% endif %}" required placeholder="SFO, OAK">
+    </div>
+    <div>
+      <label for="destinations_text">Destinations (comma-separated IATA)</label>
+      <input type="text" id="destinations_text" name="destinations_text" value="{% if fill %}{{ fill.get('destinations_text','') }}{% elif af %}{{ af.destinations | join(', ') }}{% endif %}" required placeholder="LHR, CDG">
+    </div>
+  </div>
+
+  <div class="row two">
+    <div>
+      <label for="date_start">Start date</label>
+      <input type="text" id="date_start" name="date_start" value="{% if fill %}{{ fill.get('date_start','') }}{% elif af and af.date_range %}{{ af.date_range.start }}{% endif %}" required placeholder="YYYY-MM-DD">
+    </div>
+    <div>
+      <label for="date_end">End date</label>
+      <input type="text" id="date_end" name="date_end" value="{% if fill %}{{ fill.get('date_end','') }}{% elif af and af.date_range %}{{ af.date_range.end }}{% endif %}" required placeholder="YYYY-MM-DD">
+    </div>
+  </div>
+
+  <div class="row">
+    <label>Programs</label>
+    <div class="checkboxes">
+      {% set sel = fill.getlist('programs') if fill else ((af.programs or []) if af else []) %}
+      {% for p in supported_programs %}
+      <label class="check-item">
+        <input type="checkbox" name="programs" value="{{ p }}" {% if p in sel %}checked{% endif %}>
+        {{ p }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row two">
+    <div>
+      <label for="cabin">Cabin</label>
+      {% set cab = (fill.get('cabin') if fill else None) or (af.cabin if af else 'economy') %}
+      <select id="cabin" name="cabin">
+        {% for c in cabins %}
+        <option value="{{ c }}" {% if cab == c %}selected{% endif %}>{{ c | replace('_', ' ') }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="max_points">Max points (optional)</label>
+      <input type="number" id="max_points" name="max_points" min="0" value="{% if fill and fill.get('max_points') %}{{ fill.get('max_points') }}{% elif af and af.get('max_points') is not none %}{{ af.max_points }}{% endif %}">
+    </div>
+  </div>
+
+  <div class="row two">
+    <div>
+      <label for="max_duration_hours">Max duration hours (optional)</label>
+      <input type="text" id="max_duration_hours" name="max_duration_hours" value="{% if fill and fill.get('max_duration_hours') %}{{ fill.get('max_duration_hours') }}{% elif af and af.get('max_duration_hours') is not none %}{{ af.max_duration_hours }}{% endif %}">
+    </div>
+    <div style="align-self:end;">
+      <label class="check-item" style="margin:0;">
+        <input type="checkbox" name="direct_only" {% if fill %}{{ 'checked' if fill.get('direct_only') == 'on' else '' }}{% elif af and af.get('direct_only') %}checked{% endif %}>
+        Direct flights only
+      </label>
+      <label class="check-item" style="margin-top:0.5rem;">
+        <input type="checkbox" name="enabled" {% if fill %}{{ 'checked' if fill.get('enabled') == 'on' else '' }}{% elif not af or af.get('enabled', true) %}checked{% endif %}>
+        Enabled
+      </label>
+    </div>
+  </div>
+
+  <div class="row two">
+    <div>
+      <label for="depart_after">Depart after (optional, HH:MM)</label>
+      <input type="text" id="depart_after" name="depart_after" value="{% if fill %}{{ fill.get('depart_after','') }}{% elif af and af.depart_after %}{{ af.depart_after }}{% endif %}" placeholder="08:00">
+    </div>
+    <div>
+      <label for="depart_before">Depart before (optional, HH:MM)</label>
+      <input type="text" id="depart_before" name="depart_before" value="{% if fill %}{{ fill.get('depart_before','') }}{% elif af and af.depart_before %}{{ af.depart_before }}{% endif %}" placeholder="22:00">
+    </div>
+  </div>
+
+  <div class="toolbar" style="margin-top:1rem;">
+    <button type="submit" class="btn primary">Save</button>
+    <a class="btn" href="{{ url_for('index') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

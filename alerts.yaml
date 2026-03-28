@@ -1,0 +1,23 @@
+alerts:
+  - name: "SFO to Europe Business"
+    enabled: true
+    interval_minutes: 30
+    origins:
+      - SFO
+      - OAK
+    destinations:
+      - LHR
+      - CDG
+      - AMS
+    date_range:
+      start: "2026-06-01"
+      end: "2026-08-31"
+    programs:
+      - united
+      - aeroplan
+    cabin: business
+    max_points: 80000
+    direct_only: false
+    max_duration_hours: 14
+    depart_after: "08:00"
+    depart_before: "22:00"
