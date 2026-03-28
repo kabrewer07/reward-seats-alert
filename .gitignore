@@ -1,0 +1,9 @@
+.env
+seen_results.json
+alert_state.json
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+.DS_Store
