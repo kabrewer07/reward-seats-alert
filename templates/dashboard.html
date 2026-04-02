@@ -1,7 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — Seats Alert{% endblock %}
+{% block title %}All alerts — Seats Alert{% endblock %}
 {% block body %}
-<h2 style="margin-top:0;font-size:1.1rem;font-weight:600;">Alerts</h2>
+<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem;margin-bottom:1rem;">
+  <h2 style="margin:0;font-size:1.1rem;font-weight:600;">All alerts</h2>
+  {% if alerts %}
+  <form method="post" action="{{ url_for('alerts_check_now_all') }}" style="margin:0;">
+    <button type="submit" class="btn small">Check all enabled</button>
+  </form>
+  {% endif %}
+</div>
 {% if not alerts %}
 <p style="color:var(--muted);">No alerts yet. Create one to get started.</p>
 {% endif %}
@@ -18,12 +25,18 @@
         {% else %}
         <span style="font-size:0.75rem;padding:0.15rem 0.45rem;border-radius:999px;background:#444;color:var(--muted);">paused</span>
         {% endif %}
+        {% if not a.get('push_notifications', true) %}
+        <span style="font-size:0.75rem;padding:0.15rem 0.45rem;border-radius:999px;background:#3d342255;color:var(--warn);">push off</span>
+        {% endif %}
         {% if st.get('error') %}
         <span style="font-size:0.75rem;padding:0.15rem 0.45rem;border-radius:999px;background:#7f1d1d55;color:var(--danger);" title="{{ st.error }}">error</span>
         {% endif %}
       </div>
     </div>
     <div class="toolbar">
+      <form method="post" action="{{ url_for('alert_check_now', name=a.name) }}" style="display:inline;">
+        <button type="submit" class="btn small">Check now</button>
+      </form>
       <a class="btn small" href="{{ url_for('alert_edit', name=a.name) }}">Edit</a>
       <form method="post" action="{{ url_for('alert_toggle', name=a.name) }}" style="display:inline;">
         <button type="submit" class="btn small">{% if a.get('enabled', true) %}Pause{% else %}Enable{% endif %}</button>
@@ -36,8 +49,23 @@
   <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);display:grid;gap:0.2rem;">
     <div>Last checked: {{ st.get('last_checked') or '—' }}</div>
     <div>Next check: {{ st.get('next_run') or '—' }}</div>
-    <div>Last match: {{ st.get('last_triggered') or '—' }}</div>
-    <div>Total matches (notified): {{ st.get('total_matches', 0) }}</div>
+    <div>Last new notification: {{ st.get('last_triggered') or '—' }}</div>
+    <div>Notifications sent (lifetime): <strong style="color:var(--text);">{{ st.get('total_matches', 0) }}</strong> <span style="font-size:0.78rem;">(only counts each trip the first time we notify you)</span></div>
+    {% if st.get('last_run_debug') %}
+    {% set lr = st.last_run_debug %}
+    {% set fs = lr.get('filter_stats', {}) %}
+    <div style="font-size:0.82rem;color:var(--text);border-left:2px solid var(--border);padding-left:0.5rem;margin-top:0.15rem;">
+      Last run summary:
+      <strong>{{ fs.get('trips_passing_all_filters', 0) }}</strong> trip(s) matched your filters;
+      {% if lr.get('push_notifications_enabled', true) %}
+      <strong>{{ lr.get('new_notifications_sent', 0) }}</strong> new notification(s);
+      {% else %}
+      push disabled — <strong>{{ lr.get('would_have_notified_if_push_enabled', 0) }}</strong> would have notified;
+      {% endif %}
+      <strong>{{ lr.get('skipped_already_notified', 0) }}</strong> skipped (already notified earlier).
+      {% if fs.get('records_in_response', 0) %}API returned <strong>{{ fs.get('records_in_response') }}</strong> availability row(s).{% endif %}
+    </div>
+    {% endif %}
     <div>Interval: {{ a.get('interval_minutes', 30) }} min</div>
   </div>
   <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
@@ -53,7 +81,17 @@
     {% if a.get('depart_after') or a.get('depart_before') %}
     <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">depart {{ a.get('depart_after','*') }}–{{ a.get('depart_before','*') }}</span>
     {% endif %}
+    {% if not a.get('push_notifications', true) %}
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">push notifications off</span>
+    {% endif %}
   </div>
+  {% if st.get('last_run_debug') %}
+  <details style="margin-top:0.85rem;border-top:1px solid var(--border);padding-top:0.75rem;">
+    <summary style="cursor:pointer;color:var(--accent);font-size:0.85rem;font-weight:500;user-select:none;">Last run — API request & response summary</summary>
+    <pre style="margin:0.6rem 0 0;font-size:0.72rem;line-height:1.4;overflow:auto;max-height:22rem;padding:0.65rem;background:#0b0d10;border:1px solid var(--border);border-radius:8px;color:var(--muted);white-space:pre-wrap;word-break:break-word;">{{ st.last_run_debug | tojson(indent=2) }}</pre>
+    <p style="margin:0.45rem 0 0;font-size:0.75rem;color:var(--muted);">Same details are logged at INFO in the terminal where <code style="font-size:0.7rem;">python app.py</code> runs.</p>
+  </details>
+  {% endif %}
 </div>
 {% endfor %}
 {% endblock %}

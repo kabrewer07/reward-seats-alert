@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
+import airport_times
 import filters
 import notifier
 import searcher
@@ -127,9 +128,16 @@ def run_single_alert(alert: dict) -> None:
 
     seen = state.load_seen()
     new_count = 0
+    do_push = alert.get("push_notifications", True)
+    would_notify_if_push_on = 0
+    search_debug: dict = {}
+    stats: dict = {}
+    records: list = []
+    skipped_seen = 0
+    trip_match_samples: list[dict] = []
 
     try:
-        records = searcher.search_flights(
+        records, search_debug = searcher.search_flights(
             api_key,
             origins=[str(x).upper() for x in origins],
             destinations=[str(x).upper() for x in dests],
@@ -139,14 +147,57 @@ def run_single_alert(alert: dict) -> None:
             cabin=str(alert.get("cabin", "economy")).lower(),
             direct_only=bool(alert.get("direct_only")),
         )
+        stats = filters.match_stats(alert, records)
+        log.info(
+            "Alert %r filter stats: %s",
+            name,
+            stats,
+        )
 
         for rec in records:
             for trip in filters.matching_trips(alert, rec):
+                if len(trip_match_samples) < 12:
+                    oa = str(
+                        trip.get("OriginAirport") or (rec.get("Route") or {}).get("OriginAirport") or ""
+                    )
+                    da = str(
+                        trip.get("DestinationAirport")
+                        or (rec.get("Route") or {}).get("DestinationAirport")
+                        or ""
+                    )
+                    trip_match_samples.append(
+                        {
+                            "record_date": rec.get("Date"),
+                            "record_source": rec.get("Source"),
+                            "route": (rec.get("Route") or {}),
+                            "trip": {
+                                "ID": trip.get("ID"),
+                                "Cabin": trip.get("Cabin"),
+                                "MileageCost": trip.get("MileageCost"),
+                                "Stops": trip.get("Stops"),
+                                "TotalDuration_min": trip.get("TotalDuration"),
+                                "DepartsAt": trip.get("DepartsAt"),
+                                "ArrivesAt": trip.get("ArrivesAt"),
+                                "DepartsAt_local_display": airport_times.format_flight_time(
+                                    trip.get("DepartsAt"), oa or None
+                                ),
+                                "ArrivesAt_local_display": airport_times.format_flight_time(
+                                    trip.get("ArrivesAt"), da or None
+                                ),
+                                "FlightNumbers": trip.get("FlightNumbers"),
+                                "RemainingSeats": trip.get("RemainingSeats"),
+                            },
+                        }
+                    )
                 tid = trip.get("ID")
                 if tid is None:
                     continue
                 key = f"{name}::{tid}"
                 if key in seen:
+                    skipped_seen += 1
+                    continue
+                if not do_push:
+                    would_notify_if_push_on += 1
                     continue
                 notifier.notify_match(alert, trip, rec)
                 state.add_seen(key, seen)
@@ -154,6 +205,26 @@ def run_single_alert(alert: dict) -> None:
                 last_triggered = state.iso_now()
 
         interval = int(alert.get("interval_minutes") or 30)
+        last_run_debug = {
+            "at": state.iso_now(),
+            "alert_cabin": str(alert.get("cabin")),
+            "push_notifications_enabled": bool(do_push),
+            "search": search_debug,
+            "filter_stats": stats,
+            "skipped_already_notified": skipped_seen,
+            "new_notifications_sent": new_count,
+            "would_have_notified_if_push_enabled": would_notify_if_push_on,
+            "trips_matching_filters_sample": trip_match_samples,
+        }
+        log.info(
+            "Alert %r check done: matching_trips=%s new_notifications=%s skipped_seen=%s push=%s would_if_off=%s",
+            name,
+            stats.get("trips_passing_all_filters"),
+            new_count,
+            skipped_seen,
+            do_push,
+            would_notify_if_push_on,
+        )
         _merge_alert_state(
             name,
             {
@@ -161,11 +232,23 @@ def run_single_alert(alert: dict) -> None:
                 "last_triggered": last_triggered,
                 "total_matches": prev_total + new_count,
                 "error": None,
+                "last_run_debug": last_run_debug,
             },
         )
     except Exception as e:
         log.exception("Alert %s failed", name)
         interval = int(alert.get("interval_minutes") or 30)
+        last_run_debug = {
+            "at": state.iso_now(),
+            "error": str(e),
+            "push_notifications_enabled": bool(alert.get("push_notifications", True)),
+            "search": search_debug,
+            "filter_stats": stats,
+            "skipped_already_notified": skipped_seen,
+            "new_notifications_sent": new_count,
+            "would_have_notified_if_push_enabled": would_notify_if_push_on,
+            "trips_matching_filters_sample": trip_match_samples,
+        }
         _merge_alert_state(
             name,
             {
@@ -173,8 +256,44 @@ def run_single_alert(alert: dict) -> None:
                 "next_run": _schedule_next_iso(interval),
                 "last_triggered": last_triggered,
                 "total_matches": prev_total,
+                "last_run_debug": last_run_debug,
             },
         )
+
+
+def start_manual_check(alert_name: str | None = None) -> bool:
+    """
+    Run `run_single_alert` in background thread(s).
+
+    If ``alert_name`` is set, runs that alert only (even if paused).
+    If ``None``, runs every **enabled** alert.
+
+    Returns False if nothing was scheduled (unknown name, or no enabled alerts).
+    """
+    alerts = load_alerts_from_disk()
+    if alert_name is not None:
+        key = str(alert_name)
+        found = next((a for a in alerts if str(a.get("name")) == key), None)
+        if found is None:
+            return False
+        threading.Thread(
+            target=run_single_alert,
+            args=(found,),
+            name="manual-check",
+            daemon=True,
+        ).start()
+        return True
+    started = False
+    for a in alerts:
+        if a.get("enabled", True):
+            threading.Thread(
+                target=run_single_alert,
+                args=(a,),
+                name="manual-check-all",
+                daemon=True,
+            ).start()
+            started = True
+    return started
 
 
 def _alert_due(alert: dict, st: dict, startup: bool) -> bool:

@@ -1,9 +1,66 @@
 {% extends "base.html" %}
 {% block title %}{% if editing %}Edit{% else %}New{% endif %} Alert — Seats Alert{% endblock %}
+{% block head %}
+<style>
+  .form-enabled-panel {
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.15rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+  }
+  .form-enabled-panel .form-enabled-heading {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 0.45rem 0;
+    font-weight: 600;
+  }
+  .form-enabled-panel label.form-enabled-main {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 1.08rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+    cursor: pointer;
+  }
+  .form-enabled-panel .form-enabled-main input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .form-enabled-hint {
+    margin: 0.65rem 0 0 1.85rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.45;
+    max-width: 40rem;
+  }
+</style>
+{% endblock %}
 {% block body %}
 <h2 style="margin-top:0;font-size:1.1rem;font-weight:600;">{% if editing %}Edit alert{% else %}New alert{% endif %}</h2>
 
 <form method="post">
+  <div class="form-enabled-panel">
+    <p class="form-enabled-heading">Alert status</p>
+    <label class="form-enabled-main">
+      <input type="checkbox" name="enabled" {% if fill %}{{ 'checked' if fill.get('enabled') == 'on' else '' }}{% elif not af or af.get('enabled', true) %}checked{% endif %}>
+      Alert is enabled
+    </label>
+    <p class="form-enabled-hint">When enabled, this alert runs on its schedule and is included in “check all enabled.” When off, it stays paused (you can still use “check now” on the dashboard for a one-off run).</p>
+    <label class="form-enabled-main" style="margin-top:1rem;">
+      <input type="checkbox" name="push_notifications" {% if fill %}{{ 'checked' if fill.get('push_notifications') == 'on' else '' }}{% elif af is none or af.get('push_notifications', true) %}checked{% endif %}>
+      Send push notifications
+    </label>
+    <p class="form-enabled-hint">When off, matches are still found and shown under “Last run” on the dashboard, but no Pushover/Telegram message is sent and trips are not marked as already notified—so turning this back on later can still alert you for the same trips.</p>
+  </div>
+
   <div class="row">
     <div>
       <label for="name">Name</label>
@@ -80,10 +137,6 @@
         <input type="checkbox" name="direct_only" {% if fill %}{{ 'checked' if fill.get('direct_only') == 'on' else '' }}{% elif af and af.get('direct_only') %}checked{% endif %}>
         Direct flights only
       </label>
-      <label class="check-item" style="margin-top:0.5rem;">
-        <input type="checkbox" name="enabled" {% if fill %}{{ 'checked' if fill.get('enabled') == 'on' else '' }}{% elif not af or af.get('enabled', true) %}checked{% endif %}>
-        Enabled
-      </label>
     </div>
   </div>
 
@@ -97,6 +150,7 @@
       <input type="text" id="depart_before" name="depart_before" value="{% if fill %}{{ fill.get('depart_before','') }}{% elif af and af.depart_before %}{{ af.depart_before }}{% endif %}" placeholder="22:00">
     </div>
   </div>
+  <p style="margin:-0.5rem 0 0;font-size:0.8rem;color:var(--muted);max-width:42rem;">Depart window is evaluated in each trip’s <strong>departure airport</strong> local time (IATA → timezone via OpenFlights-based data). Obscure codes with no mapping fall back to the raw clock from the API.</p>
 
   <div class="toolbar" style="margin-top:1rem;">
     <button type="submit" class="btn primary">Save</button>

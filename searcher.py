@@ -2,11 +2,32 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import requests
 
 BASE_URL = "https://seats.aero/partnerapi/search"
+
+log = logging.getLogger(__name__)
+
+
+def _summarize_record(rec: dict[str, Any]) -> dict[str, Any]:
+    route = rec.get("Route") or {}
+    trips = rec.get("AvailabilityTrips") or []
+    trip_n = len(trips) if isinstance(trips, list) else 0
+    return {
+        "ID": rec.get("ID"),
+        "Date": rec.get("Date"),
+        "Source": rec.get("Source"),
+        "Origin": route.get("OriginAirport"),
+        "Destination": route.get("DestinationAirport"),
+        "YAvailable": rec.get("YAvailable"),
+        "WAvailable": rec.get("WAvailable"),
+        "JAvailable": rec.get("JAvailable"),
+        "FAvailable": rec.get("FAvailable"),
+        "availability_trips_count": trip_n,
+    }
 
 
 def search_flights(
@@ -21,10 +42,12 @@ def search_flights(
     direct_only: bool,
     take: int = 500,
     timeout: int = 120,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Paginate until hasMore is false.
     First page: no skip/cursor. Later pages: skip += len(data), cursor from first response only.
+
+    Returns (records, debug_info). debug_info is JSON-serializable (no secrets — API key is header-only).
     """
     params_base: dict[str, Any] = {
         "origin_airport": ",".join(origins),
@@ -46,6 +69,7 @@ def search_flights(
     first_page = True
 
     session = requests.Session()
+    pages: list[dict[str, Any]] = []
 
     while True:
         params = dict(params_base)
@@ -54,7 +78,17 @@ def search_flights(
             if cursor is not None:
                 params["cursor"] = cursor
 
-        resp = session.get(BASE_URL, params=params, headers=headers, timeout=timeout)
+        req = requests.Request("GET", BASE_URL, params=params, headers=headers)
+        prepared = session.prepare_request(req)
+        url_logged = prepared.url
+        log.info("seats.aero request GET %s", url_logged)
+
+        resp = session.send(prepared, timeout=timeout)
+        log.info(
+            "seats.aero response status=%s url=%s",
+            resp.status_code,
+            url_logged,
+        )
         resp.raise_for_status()
         body = resp.json()
 
@@ -68,6 +102,23 @@ def search_flights(
         if not isinstance(batch, list):
             batch = []
 
+        page_info = {
+            "request_url": url_logged,
+            "http_status": resp.status_code,
+            "body_count": body.get("count"),
+            "hasMore": body.get("hasMore"),
+            "cursor_in_response": body.get("cursor"),
+            "batch_rows": len(batch),
+        }
+        pages.append(page_info)
+        log.info(
+            "seats.aero page batch_rows=%s hasMore=%s count=%s cursor=%s",
+            len(batch),
+            body.get("hasMore"),
+            body.get("count"),
+            body.get("cursor"),
+        )
+
         for item in batch:
             if isinstance(item, dict) and item.get("ID") is not None:
                 by_id[str(item["ID"])] = item
@@ -77,4 +128,21 @@ def search_flights(
         if not body.get("hasMore"):
             break
 
-    return list(by_id.values())
+    records = list(by_id.values())
+    keys = list(by_id.keys())
+    samples = [_summarize_record(by_id[k]) for k in keys[:8]]
+
+    debug: dict[str, Any] = {
+        "api_base": BASE_URL,
+        "query_params_template": {k: v for k, v in params_base.items()},
+        "pages_fetched": len(pages),
+        "pages": pages,
+        "unique_records_after_merge": len(records),
+        "record_samples": samples,
+    }
+    log.info(
+        "seats.aero search done: pages=%s unique_records=%s",
+        len(pages),
+        len(records),
+    )
+    return records, debug

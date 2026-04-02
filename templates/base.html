@@ -82,6 +82,13 @@
     .check-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
     .check-item input { width: auto; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    header .nav-link {
+      font-size: 0.9rem;
+      color: var(--muted);
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+    }
+    header .nav-link:hover { color: var(--text); background: #0b0d10; text-decoration: none; }
   </style>
   {% block head %}{% endblock %}
 </head>
@@ -89,6 +96,7 @@
   <header>
     <h1><a href="{{ url_for('index') }}" style="color:inherit;text-decoration:none;">Seats Alert</a></h1>
     <nav class="toolbar">
+      <a class="nav-link" href="{{ url_for('index') }}">All alerts</a>
       <a class="btn primary" href="{{ url_for('alert_new') }}">New Alert</a>
     </nav>
   </header>

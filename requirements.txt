@@ -2,3 +2,5 @@ requests
 flask
 pyyaml
 python-dotenv
+airportsdata
+tzdata

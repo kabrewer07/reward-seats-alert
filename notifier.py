@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 from urllib.parse import urlencode
 
 import requests
+
+import airport_times
+
+log = logging.getLogger(__name__)
 
 CABIN_EMOJI = {
     "economy": "✈️",
@@ -17,6 +22,35 @@ CABIN_EMOJI = {
 
 PUSHOVER_URL = "https://api.pushover.net/1/messages.json"
 TELEGRAM_URL = "https://api.telegram.org/bot{token}/sendMessage"
+
+# https://pushover.net/api#limits
+PUSHOVER_TITLE_MAX = 250
+PUSHOVER_MESSAGE_MAX = 1024
+PUSHOVER_URL_MAX = 512
+PUSHOVER_URL_TITLE_MAX = 100
+
+
+def _truncate(s: str, max_len: int, *, ellipsis: str = "…") -> str:
+    if max_len <= 0:
+        return ""
+    if len(s) <= max_len:
+        return s
+    if max_len <= len(ellipsis):
+        return s[:max_len]
+    return s[: max_len - len(ellipsis)] + ellipsis
+
+
+def _pushover_clip(title: str, message: str, url: str, url_title: str) -> tuple[str, str, str, str]:
+    """Enforce Pushover size limits (400 Bad Request if exceeded)."""
+    url_title = _truncate(url_title, PUSHOVER_URL_TITLE_MAX)
+    if len(url) > PUSHOVER_URL_MAX:
+        extra = f"\n\nLink: {url}"
+        message = _truncate(message + extra, PUSHOVER_MESSAGE_MAX)
+        url = "https://seats.aero/search"
+    else:
+        message = _truncate(message, PUSHOVER_MESSAGE_MAX)
+    title = _truncate(title, PUSHOVER_TITLE_MAX)
+    return title, message, url, url_title
 
 
 def _deep_link(origin: str, dest: str, cabin: str, source: str) -> str:
@@ -32,8 +66,10 @@ def _deep_link(origin: str, dest: str, cabin: str, source: str) -> str:
 
 
 def _format_body(trip: dict[str, Any], record: dict[str, Any]) -> str:
-    dep = trip.get("DepartsAt", "")
-    arr = trip.get("ArrivesAt", "")
+    origin = str(trip.get("OriginAirport") or record.get("Route", {}).get("OriginAirport", ""))
+    dest = str(trip.get("DestinationAirport") or record.get("Route", {}).get("DestinationAirport", ""))
+    dep = airport_times.format_flight_time(trip.get("DepartsAt"), origin or None)
+    arr = airport_times.format_flight_time(trip.get("ArrivesAt"), dest or None)
     dur_min = trip.get("TotalDuration")
     stops = int(trip.get("Stops", 0))
     legs = "Nonstop" if stops == 0 else f"{stops} stop(s)"
@@ -49,7 +85,8 @@ def _format_body(trip: dict[str, Any], record: dict[str, Any]) -> str:
     date = record.get("Date", "")
     lines = [
         f"Date: {date}",
-        f"Departs: {dep}  →  Arrives: {arr}",
+        f"Departs (local): {dep or trip.get('DepartsAt', '')}",
+        f"Arrives (local): {arr or trip.get('ArrivesAt', '')}",
     ]
     if dur_min is not None:
         h, m = divmod(int(dur_min), 60)
@@ -105,17 +142,27 @@ def _send_pushover(title: str, message: str, url: str) -> None:
     user = os.environ.get("PUSHOVER_USER", "")
     if not token or not user:
         raise RuntimeError("PUSHOVER_TOKEN and PUSHOVER_USER must be set for Pushover")
+    url_title = "View on seats.aero"
+    title, message, url, url_title = _pushover_clip(title, message, url, url_title)
+    if not (message or "").strip():
+        message = "Award availability matched your alert."
     data = {
         "token": token,
         "user": user,
         "title": title,
         "message": message,
         "url": url,
-        "url_title": "View on seats.aero",
+        "url_title": url_title,
         "priority": 1,
     }
     r = requests.post(PUSHOVER_URL, data=data, timeout=30)
-    r.raise_for_status()
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = r.text
+        log.error("Pushover HTTP %s: %s", r.status_code, detail)
+        raise RuntimeError(f"Pushover HTTP {r.status_code}: {detail}") from None
     j = r.json()
     if j.get("status") != 1:
         raise RuntimeError(f"Pushover error: {j}")

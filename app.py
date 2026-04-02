@@ -11,7 +11,13 @@ from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 import state
-from monitor import ALERTS_PATH, load_alerts_from_disk, reload_config, start_monitor_daemon
+from monitor import (
+    ALERTS_PATH,
+    load_alerts_from_disk,
+    reload_config,
+    start_manual_check,
+    start_monitor_daemon,
+)
 
 load_dotenv()
 
@@ -108,6 +114,7 @@ def _parse_alert_from_form(readonly_name: str | None) -> tuple[dict | None, str 
     alert: dict = {
         "name": name,
         "enabled": request.form.get("enabled") == "on",
+        "push_notifications": request.form.get("push_notifications") == "on",
         "interval_minutes": interval_minutes,
         "origins": origins,
         "destinations": destinations,
@@ -158,23 +165,41 @@ def index():
     return render_template("dashboard.html", alerts=alerts, alert_state=st)
 
 
+@app.route("/alerts/check-now/<path:name>", methods=["POST"])
+def alert_check_now(name):
+    if not start_manual_check(name):
+        flash("Unknown alert.", "error")
+    else:
+        flash(f"Check started for “{name}”. Refresh in a moment for status.", "ok")
+    return redirect(url_for("index"))
+
+
+@app.route("/alerts/check-now-all", methods=["POST"])
+def alerts_check_now_all():
+    if not start_manual_check(None):
+        flash("No enabled alerts to check.", "error")
+    else:
+        flash("Check started for all enabled alerts.", "ok")
+    return redirect(url_for("index"))
+
+
 @app.route("/alerts/new", methods=["GET", "POST"])
 def alert_new():
     if request.method == "POST":
         alert, err = _parse_alert_from_form(None)
         if err:
             flash(err, "error")
-            return render_template("alert_form.html", alert=None, fill=request.form, editing=False), 400
+            return render_template("alert_form.html", af=None, fill=request.form, editing=False), 400
         current = load_alerts_from_disk()
         if any(str(a.get("name")) == str(alert.get("name")) for a in current):
             flash("An alert with this name already exists.", "error")
-            return render_template("alert_form.html", alert=None, fill=request.form, editing=False), 400
+            return render_template("alert_form.html", af=None, fill=request.form, editing=False), 400
         current.append(alert)
         save_alerts(current)
         reload_config()
         flash("Alert created.", "ok")
         return redirect(url_for("index"))
-    return render_template("alert_form.html", alert=None, fill=None, editing=False)
+    return render_template("alert_form.html", af=None, fill=None, editing=False)
 
 
 @app.route("/alerts/edit/<path:name>", methods=["GET", "POST"])
@@ -187,7 +212,7 @@ def alert_edit(name):
         alert, err = _parse_alert_from_form(name)
         if err or alert is None:
             flash(err or "Invalid form.", "error")
-            return render_template("alert_form.html", alert=existing, fill=request.form, editing=True), 400
+            return render_template("alert_form.html", af=existing, fill=request.form, editing=True), 400
         updated = []
         for a in current:
             if str(a.get("name")) == name:
@@ -198,7 +223,7 @@ def alert_edit(name):
         reload_config()
         flash("Alert updated.", "ok")
         return redirect(url_for("index"))
-    return render_template("alert_form.html", alert=existing, fill=None, editing=True)
+    return render_template("alert_form.html", af=existing, fill=None, editing=True)
 
 
 @app.route("/alerts/toggle/<path:name>", methods=["POST"])
@@ -238,7 +263,8 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO)
     start_monitor_daemon()
     port = int(os.environ.get("FLASK_PORT", "5000"))
-    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
+    host = os.environ.get("FLASK_HOST", "127.0.0.1")
+    app.run(host=host, port=port, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":
