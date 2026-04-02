@@ -22,7 +22,7 @@ alerts:
   max_duration_hours: 14
   depart_after: 08:00
   depart_before: '22:00'
-- name: Test sfo-tokyo 4/5
+- name: Demo SFO to Tokyo 4/5-4/6
   enabled: true
   push_notifications: true
   interval_minutes: 30
