@@ -55,7 +55,7 @@
     .btn.danger { border-color: #991b1b; color: var(--danger); }
     .btn.small { padding: 0.25rem 0.55rem; font-size: 0.8rem; }
     label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
-    input[type="text"], input[type="number"], select, textarea {
+    input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea {
       width: 100%;
       padding: 0.5rem 0.65rem;
       border-radius: 8px;
@@ -63,6 +63,7 @@
       background: #0b0d10;
       color: var(--text);
     }
+    input[type="number"] { text-align: start; }
     textarea { min-height: 4rem; resize: vertical; }
     .row { display: grid; gap: 1rem; margin-bottom: 1rem; }
     @media (min-width: 640px) {

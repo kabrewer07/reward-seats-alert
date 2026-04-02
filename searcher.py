@@ -38,7 +38,7 @@ def search_flights(
     start_date: str,
     end_date: str,
     programs: list[str],
-    cabin: str,
+    cabins: list[str],
     direct_only: bool,
     take: int = 500,
     timeout: int = 120,
@@ -49,13 +49,14 @@ def search_flights(
 
     Returns (records, debug_info). debug_info is JSON-serializable (no secrets — API key is header-only).
     """
+    cabin_param = ",".join(cabins) if cabins else "economy"
     params_base: dict[str, Any] = {
         "origin_airport": ",".join(origins),
         "destination_airport": ",".join(destinations),
         "start_date": start_date,
         "end_date": end_date,
         "sources": ",".join(programs),
-        "cabins": cabin,
+        "cabins": cabin_param,
         "only_direct_flights": str(bool(direct_only)).lower(),
         "include_trips": "true",
         "include_filtered": "false",

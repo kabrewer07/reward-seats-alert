@@ -47,9 +47,9 @@
     </div>
   </div>
   <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);display:grid;gap:0.2rem;">
-    <div>Last checked: {{ st.get('last_checked') or '—' }}</div>
-    <div>Next check: {{ st.get('next_run') or '—' }}</div>
-    <div>Last new notification: {{ st.get('last_triggered') or '—' }}</div>
+    <div>Last checked: {{ st.get('last_checked') | dashboard_time }}</div>
+    <div>Next check: {{ st.get('next_run') | dashboard_time }}</div>
+    <div>Last new notification: {{ st.get('last_triggered') | dashboard_time }}</div>
     <div>Notifications sent (lifetime): <strong style="color:var(--text);">{{ st.get('total_matches', 0) }}</strong> <span style="font-size:0.78rem;">(only counts each trip the first time we notify you)</span></div>
     {% if st.get('last_run_debug') %}
     {% set lr = st.last_run_debug %}
@@ -67,15 +67,17 @@
     </div>
     {% endif %}
     <div>Interval: {{ a.get('interval_minutes', 30) }} min</div>
+    <div style="font-size:0.75rem;margin-top:0.15rem;">Schedule times use US Pacific (PST/PDT). Change with <code style="font-size:0.7rem;">DASHBOARD_TIMEZONE</code> in <code style="font-size:0.7rem;">.env</code> (IANA name).</div>
   </div>
   <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
     <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.origins | join(', ') }} → {{ a.destinations | join(', ') }}</span>
     {% if a.date_range %}
     <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.date_range.start }} … {{ a.date_range.end }}</span>
     {% endif %}
-    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.cabin | replace('_', ' ') }}</span>
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{% for c in a | alert_cabins %}{{ c | replace('_', ' ') }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
     {% if a.get('max_points') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">≤ {{ a.max_points }} pts</span>{% endif %}
-    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.programs | join(', ') }}</span>
+    {% if a.get('min_seats') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">≥ {{ a.min_seats }} seats</span>{% endif %}
+    <span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">{{ a.programs | sort | join(', ') }}</span>
     {% if a.get('direct_only') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">direct only</span>{% endif %}
     {% if a.get('max_duration_hours') %}<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:6px;border:1px solid var(--border);">≤ {{ a.max_duration_hours }}h</span>{% endif %}
     {% if a.get('depart_after') or a.get('depart_before') %}
@@ -89,7 +91,7 @@
   <details style="margin-top:0.85rem;border-top:1px solid var(--border);padding-top:0.75rem;">
     <summary style="cursor:pointer;color:var(--accent);font-size:0.85rem;font-weight:500;user-select:none;">Last run — API request & response summary</summary>
     <pre style="margin:0.6rem 0 0;font-size:0.72rem;line-height:1.4;overflow:auto;max-height:22rem;padding:0.65rem;background:#0b0d10;border:1px solid var(--border);border-radius:8px;color:var(--muted);white-space:pre-wrap;word-break:break-word;">{{ st.last_run_debug | tojson(indent=2) }}</pre>
-    <p style="margin:0.45rem 0 0;font-size:0.75rem;color:var(--muted);">Same details are logged at INFO in the terminal where <code style="font-size:0.7rem;">python app.py</code> runs.</p>
+    <p style="margin:0.45rem 0 0;font-size:0.75rem;color:var(--muted);">Same details are logged at INFO in the terminal where <code style="font-size:0.7rem;">python app.py</code> runs. Timestamps in this JSON are raw; the card schedule times use US Pacific.</p>
   </details>
   {% endif %}
 </div>

@@ -14,6 +14,42 @@ CABIN_TO_PREFIX: dict[str, str] = {
     "first": "F",
 }
 
+_CABIN_ORDER: tuple[str, ...] = ("economy", "premium_economy", "business", "first")
+
+
+def normalize_cabin_key(s: Any) -> str:
+    """Map trip/API cabin strings to internal keys (economy, premium_economy, …)."""
+    if s is None:
+        return ""
+    x = str(s).strip().lower().replace(" ", "_").replace("-", "_")
+    if x == "premium":
+        return "premium_economy"
+    return x
+
+
+def sort_cabin_names(names: list[str]) -> list[str]:
+    s = {n for n in names if n in CABIN_TO_PREFIX}
+    return [c for c in _CABIN_ORDER if c in s]
+
+
+def alert_cabin_names(alert: dict[str, Any]) -> list[str]:
+    """Selected cabin classes for an alert; supports legacy single `cabin` key."""
+    raw = alert.get("cabins")
+    if isinstance(raw, list) and raw:
+        out: list[str] = []
+        for c in raw:
+            s = str(c).strip().lower()
+            if s in CABIN_TO_PREFIX:
+                out.append(s)
+        if out:
+            return sort_cabin_names(out)
+    c = alert.get("cabin")
+    if c is not None and str(c).strip():
+        s = str(c).strip().lower()
+        if s in CABIN_TO_PREFIX:
+            return [s]
+    return ["economy"]
+
 
 def _parse_hhmm(s: str) -> time | None:
     parts = s.strip().split(":")
@@ -26,22 +62,36 @@ def _parse_hhmm(s: str) -> time | None:
         return None
 
 
+def normalize_time_input(s: Any) -> str:
+    """Format stored HH:MM (or H:M) for HTML input type=\"time\" (HH:MM)."""
+    if s is None:
+        return ""
+    st = str(s).strip()
+    if not st:
+        return ""
+    t = _parse_hhmm(st)
+    if t:
+        return f"{t.hour:02d}:{t.minute:02d}"
+    return st
+
+
 def record_precheck(alert: dict[str, Any], record: dict[str, Any]) -> bool:
-    cabin = alert.get("cabin")
-    prefix = CABIN_TO_PREFIX.get(str(cabin) if cabin is not None else "")
-    if not prefix:
-        return False
-    if not record.get(f"{prefix}Available"):
-        return False
-    if alert.get("direct_only") and not record.get(f"{prefix}Direct"):
-        return False
-    return True
+    for cabin in alert_cabin_names(alert):
+        prefix = CABIN_TO_PREFIX.get(cabin)
+        if not prefix:
+            continue
+        if not record.get(f"{prefix}Available"):
+            continue
+        if alert.get("direct_only") and not record.get(f"{prefix}Direct"):
+            continue
+        return True
+    return False
 
 
 def trip_matches(alert: dict[str, Any], trip: dict[str, Any]) -> bool:
-    ac = str(alert.get("cabin", "")).lower()
-    tc = str(trip.get("Cabin", "")).lower()
-    if tc != ac:
+    allowed = set(alert_cabin_names(alert))
+    tc = normalize_cabin_key(trip.get("Cabin"))
+    if tc not in allowed:
         return False
     max_pts = alert.get("max_points")
     if max_pts is not None:
@@ -50,6 +100,14 @@ def trip_matches(alert: dict[str, Any], trip: dict[str, Any]) -> bool:
             return False
     if alert.get("direct_only") and int(trip.get("Stops", 99)) != 0:
         return False
+    min_seats = alert.get("min_seats")
+    if min_seats is not None:
+        rs = trip.get("RemainingSeats")
+        try:
+            if rs is None or int(rs) < int(min_seats):
+                return False
+        except (TypeError, ValueError):
+            return False
     max_dur = alert.get("max_duration_hours")
     if max_dur is not None:
         total_min = trip.get("TotalDuration")

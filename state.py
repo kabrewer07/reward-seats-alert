@@ -109,3 +109,34 @@ def prune_seen_for_alert(alert_name: str, seen: set[str]) -> None:
         data = [x for x in data if not str(x).startswith(prefix)]
         _write_json(SEEN_RESULTS_PATH, data)
     seen.difference_update({k for k in seen if k.startswith(prefix)})
+
+
+def rename_alert_state(old_name: str, new_name: str) -> None:
+    if not old_name or old_name == new_name:
+        return
+    with _lock:
+        state = load_alert_state_unlocked()
+        if old_name not in state:
+            return
+        payload = state.pop(old_name)
+        state[new_name] = payload
+        _write_json(ALERT_STATE_PATH, state)
+
+
+def rename_seen_alert_prefix(old_name: str, new_name: str) -> None:
+    if not old_name or old_name == new_name:
+        return
+    prefix_old = f"{old_name}::"
+    prefix_new = f"{new_name}::"
+    with _lock:
+        data = _read_json(SEEN_RESULTS_PATH, [])
+        if not isinstance(data, list):
+            data = []
+        out: list[str] = []
+        for x in data:
+            s = str(x)
+            if s.startswith(prefix_old):
+                out.append(prefix_new + s[len(prefix_old) :])
+            else:
+                out.append(s)
+        _write_json(SEEN_RESULTS_PATH, sorted(set(out)))

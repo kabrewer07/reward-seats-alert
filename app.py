@@ -5,12 +5,15 @@ from __future__ import annotations
 import os
 import re
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import yaml
 from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
+import filters as alert_filters
 import state
+from jinja2.runtime import Undefined
 from monitor import (
     ALERTS_PATH,
     load_alerts_from_disk,
@@ -21,37 +24,82 @@ from monitor import (
 
 load_dotenv()
 
-SUPPORTED_PROGRAMS = [
-    "american",
-    "united",
-    "aeroplan",
-    "delta",
-    "alaska",
-    "virginatlantic",
-    "flyingblue",
-    "emirates",
-    "etihad",
-    "singapore",
-    "qantas",
-    "turkish",
-    "lufthansa",
-    "finnair",
-    "eurobonus",
-    "velocity",
-    "jetblue",
-    "qatar",
-    "aeromexico",
-    "connectmiles",
-    "smiles",
-    "azul",
-    "ethiopian",
-    "saudia",
-]
+SUPPORTED_PROGRAMS = sorted(
+    [
+        "american",
+        "united",
+        "aeroplan",
+        "delta",
+        "alaska",
+        "virginatlantic",
+        "flyingblue",
+        "emirates",
+        "etihad",
+        "singapore",
+        "qantas",
+        "turkish",
+        "lufthansa",
+        "finnair",
+        "eurobonus",
+        "velocity",
+        "jetblue",
+        "qatar",
+        "aeromexico",
+        "connectmiles",
+        "smiles",
+        "azul",
+        "ethiopian",
+        "saudia",
+    ]
+)
 
 CABINS = ["economy", "premium_economy", "business", "first"]
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "dev-insecure-change-me")
+
+# Dashboard schedule times: US Pacific (PST/PDT). ISO strings from state are treated as
+# that zone if naive (matches typical single-user Mac setup); Z-suffixed values as UTC.
+_DASHBOARD_TZ = ZoneInfo(os.environ.get("DASHBOARD_TIMEZONE", "America/Los_Angeles"))
+
+
+def format_dashboard_time(iso_str: str | None) -> str | None:
+    if iso_str is None:
+        return None
+    s = str(iso_str).strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        else:
+            dt = datetime.fromisoformat(s)
+    except ValueError:
+        return s
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_DASHBOARD_TZ)
+    else:
+        dt = dt.astimezone(_DASHBOARD_TZ)
+    return dt.strftime("%Y-%m-%d %I:%M %p %Z")
+
+
+@app.template_filter("time_input")
+def time_input_filter(s):
+    if isinstance(s, Undefined):
+        return ""
+    return alert_filters.normalize_time_input(s)
+
+
+@app.template_filter("alert_cabins")
+def alert_cabins_filter(alert):
+    if isinstance(alert, Undefined):
+        return []
+    return alert_filters.alert_cabin_names(alert)
+
+
+@app.template_filter("dashboard_time")
+def dashboard_time_filter(iso_str: str | None) -> str:
+    return format_dashboard_time(iso_str) or "—"
 
 
 def save_alerts(alerts: list[dict]) -> None:
@@ -71,10 +119,21 @@ def _split_airports(s: str) -> list[str]:
     return [p for p in parts if p]
 
 
-def _parse_alert_from_form(readonly_name: str | None) -> tuple[dict | None, str | None]:
+def _alert_name_taken(
+    alerts: list[dict], name: str, *, editing_original: str | None = None
+) -> bool:
+    for a in alerts:
+        n = str(a.get("name"))
+        if n != name:
+            continue
+        if editing_original is not None and n == editing_original:
+            continue
+        return True
+    return False
+
+
+def _parse_alert_from_form() -> tuple[dict | None, str | None]:
     name = (request.form.get("name") or "").strip()
-    if readonly_name is not None:
-        name = readonly_name
     if not name:
         return None, "Name is required."
 
@@ -100,9 +159,12 @@ def _parse_alert_from_form(readonly_name: str | None) -> tuple[dict | None, str 
     if not programs:
         return None, "Select at least one mileage program."
 
-    cabin = (request.form.get("cabin") or "economy").strip().lower()
-    if cabin not in CABINS:
-        return None, "Invalid cabin."
+    raw_cabins = [c.strip().lower() for c in request.form.getlist("cabins") if c.strip()]
+    for c in raw_cabins:
+        if c not in CABINS:
+            return None, "Invalid cabin class."
+    if not raw_cabins:
+        return None, "Select at least one cabin class."
 
     try:
         interval_minutes = int(request.form.get("interval_minutes") or 30)
@@ -120,7 +182,7 @@ def _parse_alert_from_form(readonly_name: str | None) -> tuple[dict | None, str 
         "destinations": destinations,
         "date_range": {"start": start, "end": end},
         "programs": programs,
-        "cabin": cabin,
+        "cabins": alert_filters.sort_cabin_names(raw_cabins),
     }
 
     max_points = (request.form.get("max_points") or "").strip()
@@ -146,6 +208,16 @@ def _parse_alert_from_form(readonly_name: str | None) -> tuple[dict | None, str 
     db = (request.form.get("depart_before") or "").strip()
     if db:
         alert["depart_before"] = db
+
+    min_seats = (request.form.get("min_seats") or "").strip()
+    if min_seats:
+        try:
+            ms = int(min_seats)
+            if ms < 1:
+                return None, "Minimum seats must be at least 1."
+            alert["min_seats"] = ms
+        except ValueError:
+            return None, "Minimum seats must be a whole number."
 
     return alert, None
 
@@ -186,12 +258,12 @@ def alerts_check_now_all():
 @app.route("/alerts/new", methods=["GET", "POST"])
 def alert_new():
     if request.method == "POST":
-        alert, err = _parse_alert_from_form(None)
+        alert, err = _parse_alert_from_form()
         if err:
             flash(err, "error")
             return render_template("alert_form.html", af=None, fill=request.form, editing=False), 400
         current = load_alerts_from_disk()
-        if any(str(a.get("name")) == str(alert.get("name")) for a in current):
+        if _alert_name_taken(current, str(alert.get("name"))):
             flash("An alert with this name already exists.", "error")
             return render_template("alert_form.html", af=None, fill=request.form, editing=False), 400
         current.append(alert)
@@ -209,10 +281,17 @@ def alert_edit(name):
     if existing is None:
         abort(404)
     if request.method == "POST":
-        alert, err = _parse_alert_from_form(name)
+        alert, err = _parse_alert_from_form()
         if err or alert is None:
             flash(err or "Invalid form.", "error")
             return render_template("alert_form.html", af=existing, fill=request.form, editing=True), 400
+        new_name = str(alert.get("name"))
+        if _alert_name_taken(current, new_name, editing_original=name):
+            flash("An alert with this name already exists.", "error")
+            return render_template("alert_form.html", af=existing, fill=request.form, editing=True), 400
+        if new_name != name:
+            state.rename_alert_state(name, new_name)
+            state.rename_seen_alert_prefix(name, new_name)
         updated = []
         for a in current:
             if str(a.get("name")) == name:

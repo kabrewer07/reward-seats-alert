@@ -64,11 +64,7 @@
   <div class="row">
     <div>
       <label for="name">Name</label>
-      {% if editing %}
-      <input type="text" id="name" name="name" value="{{ af.name }}" readonly style="opacity:0.85;">
-      {% else %}
-      <input type="text" id="name" name="name" value="{{ fill.get('name', '') if fill else '' }}" required>
-      {% endif %}
+      <input type="text" id="name" name="name" value="{% if fill %}{{ fill.get('name', '') }}{% elif af %}{{ af.name }}{% endif %}" required>
     </div>
     <div>
       <label for="interval_minutes">Check interval (minutes)</label>
@@ -90,17 +86,21 @@
   <div class="row two">
     <div>
       <label for="date_start">Start date</label>
-      <input type="text" id="date_start" name="date_start" value="{% if fill %}{{ fill.get('date_start','') }}{% elif af and af.date_range %}{{ af.date_range.start }}{% endif %}" required placeholder="YYYY-MM-DD">
+      <input type="date" id="date_start" name="date_start" value="{% if fill %}{{ fill.get('date_start','') }}{% elif af and af.date_range %}{{ af.date_range.start }}{% endif %}" required>
     </div>
     <div>
       <label for="date_end">End date</label>
-      <input type="text" id="date_end" name="date_end" value="{% if fill %}{{ fill.get('date_end','') }}{% elif af and af.date_range %}{{ af.date_range.end }}{% endif %}" required placeholder="YYYY-MM-DD">
+      <input type="date" id="date_end" name="date_end" value="{% if fill %}{{ fill.get('date_end','') }}{% elif af and af.date_range %}{{ af.date_range.end }}{% endif %}" required>
     </div>
   </div>
 
   <div class="row">
-    <label>Programs</label>
-    <div class="checkboxes">
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+      <label style="margin:0;">Programs</label>
+      <button type="button" class="btn small" id="programs-select-all">Select all</button>
+      <button type="button" class="btn small" id="programs-clear-all">Clear</button>
+    </div>
+    <div class="checkboxes" id="programs-checkboxes">
       {% set sel = fill.getlist('programs') if fill else ((af.programs or []) if af else []) %}
       {% for p in supported_programs %}
       <label class="check-item">
@@ -111,15 +111,28 @@
     </div>
   </div>
 
+  {% if fill %}
+  {% set cab_sel = fill.getlist('cabins') %}
+  {% elif af and af.get('cabins') %}
+  {% set cab_sel = af.cabins %}
+  {% elif af and af.get('cabin') %}
+  {% set cab_sel = [af.cabin] %}
+  {% else %}
+  {% set cab_sel = ['economy'] %}
+  {% endif %}
   <div class="row two">
     <div>
-      <label for="cabin">Cabin</label>
-      {% set cab = (fill.get('cabin') if fill else None) or (af.cabin if af else 'economy') %}
-      <select id="cabin" name="cabin">
+      <label>Cabin classes</label>
+      <div class="checkboxes" id="cabin-checkboxes" style="max-height:none;">
         {% for c in cabins %}
-        <option value="{{ c }}" {% if cab == c %}selected{% endif %}>{{ c | replace('_', ' ') }}</option>
+        <label class="check-item">
+          <input type="checkbox" name="cabins" value="{{ c }}" {% if c in cab_sel %}checked{% endif %}>
+          {{ c | replace('_', ' ') }}
+        </label>
         {% endfor %}
-      </select>
+      </div>
+      <label for="min_seats" style="margin-top:0.65rem;">Min seats available (optional)</label>
+      <input type="number" id="min_seats" name="min_seats" min="1" placeholder="any" value="{% if fill and fill.get('min_seats') %}{{ fill.get('min_seats') }}{% elif af and af.get('min_seats') is not none %}{{ af.min_seats }}{% endif %}">
     </div>
     <div>
       <label for="max_points">Max points (optional)</label>
@@ -142,12 +155,12 @@
 
   <div class="row two">
     <div>
-      <label for="depart_after">Depart after (optional, HH:MM)</label>
-      <input type="text" id="depart_after" name="depart_after" value="{% if fill %}{{ fill.get('depart_after','') }}{% elif af and af.depart_after %}{{ af.depart_after }}{% endif %}" placeholder="08:00">
+      <label for="depart_after">Depart after (optional)</label>
+      <input type="time" id="depart_after" name="depart_after" step="60" value="{% if fill %}{{ fill.get('depart_after','')|time_input }}{% elif af %}{{ af.depart_after|time_input }}{% endif %}">
     </div>
     <div>
-      <label for="depart_before">Depart before (optional, HH:MM)</label>
-      <input type="text" id="depart_before" name="depart_before" value="{% if fill %}{{ fill.get('depart_before','') }}{% elif af and af.depart_before %}{{ af.depart_before }}{% endif %}" placeholder="22:00">
+      <label for="depart_before">Depart before (optional)</label>
+      <input type="time" id="depart_before" name="depart_before" step="60" value="{% if fill %}{{ fill.get('depart_before','')|time_input }}{% elif af %}{{ af.depart_before|time_input }}{% endif %}">
     </div>
   </div>
   <p style="margin:-0.5rem 0 0;font-size:0.8rem;color:var(--muted);max-width:42rem;">Depart window is evaluated in each trip’s <strong>departure airport</strong> local time (IATA → timezone via OpenFlights-based data). Obscure codes with no mapping fall back to the raw clock from the API.</p>
@@ -157,4 +170,19 @@
     <a class="btn" href="{{ url_for('index') }}">Cancel</a>
   </div>
 </form>
+<script>
+(function () {
+  var box = document.getElementById("programs-checkboxes");
+  if (!box) return;
+  function setAll(checked) {
+    box.querySelectorAll('input[type="checkbox"][name="programs"]').forEach(function (cb) {
+      cb.checked = checked;
+    });
+  }
+  var sa = document.getElementById("programs-select-all");
+  var cl = document.getElementById("programs-clear-all");
+  if (sa) sa.addEventListener("click", function () { setAll(true); });
+  if (cl) cl.addEventListener("click", function () { setAll(false); });
+})();
+</script>
 {% endblock %}

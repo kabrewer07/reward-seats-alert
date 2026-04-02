@@ -135,6 +135,7 @@ def run_single_alert(alert: dict) -> None:
     records: list = []
     skipped_seen = 0
     trip_match_samples: list[dict] = []
+    cabin_names = filters.alert_cabin_names(alert)
 
     try:
         records, search_debug = searcher.search_flights(
@@ -144,7 +145,7 @@ def run_single_alert(alert: dict) -> None:
             start_date=str(start_d),
             end_date=str(end_d),
             programs=[str(x).lower() for x in programs],
-            cabin=str(alert.get("cabin", "economy")).lower(),
+            cabins=cabin_names,
             direct_only=bool(alert.get("direct_only")),
         )
         stats = filters.match_stats(alert, records)
@@ -207,7 +208,7 @@ def run_single_alert(alert: dict) -> None:
         interval = int(alert.get("interval_minutes") or 30)
         last_run_debug = {
             "at": state.iso_now(),
-            "alert_cabin": str(alert.get("cabin")),
+            "alert_cabins": cabin_names,
             "push_notifications_enabled": bool(do_push),
             "search": search_debug,
             "filter_stats": stats,
@@ -240,6 +241,7 @@ def run_single_alert(alert: dict) -> None:
         interval = int(alert.get("interval_minutes") or 30)
         last_run_debug = {
             "at": state.iso_now(),
+            "alert_cabins": cabin_names,
             "error": str(e),
             "push_notifications_enabled": bool(alert.get("push_notifications", True)),
             "search": search_debug,

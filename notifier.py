@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 import requests
 
 import airport_times
+import filters
 
 log = logging.getLogger(__name__)
 
@@ -53,12 +54,18 @@ def _pushover_clip(title: str, message: str, url: str, url_title: str) -> tuple[
     return title, message, url, url_title
 
 
+def _cabin_for_search_url(cabin: str) -> str:
+    if cabin == "premium_economy":
+        return "premium"
+    return cabin
+
+
 def _deep_link(origin: str, dest: str, cabin: str, source: str) -> str:
     q = urlencode(
         {
             "origin": origin,
             "destination": dest,
-            "cabin": cabin,
+            "cabin": _cabin_for_search_url(cabin),
             "source": source,
         }
     )
@@ -124,7 +131,7 @@ def notify_match(
     dest = str(
         trip.get("DestinationAirport") or record.get("Route", {}).get("DestinationAirport", "")
     )
-    cabin = str(alert.get("cabin", "")).lower()
+    cabin = filters.normalize_cabin_key(trip.get("Cabin")) or "economy"
     program = str(trip.get("Source") or record.get("Source", ""))
     emoji = CABIN_EMOJI.get(cabin, "✈️")
     title = f"{emoji} {origin} → {dest} {cabin.replace('_', ' ').title()} | {program}"
