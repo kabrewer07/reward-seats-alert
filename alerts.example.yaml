@@ -1,0 +1,44 @@
+# Copy to alerts.yaml and edit, or start from an empty file and use the web UI.
+#   cp alerts.example.yaml alerts.yaml
+
+alerts:
+  - name: "Demo — West Coast to Europe (business)"
+    enabled: true
+    push_notifications: true
+    interval_minutes: 30
+    origins:
+      - SFO
+      - OAK
+    destinations:
+      - LHR
+      - CDG
+      - AMS
+    date_range:
+      start: "2026-06-01"
+      end: "2026-08-31"
+    programs:
+      - united
+      - aeroplan
+    cabin: business
+    max_points: 80000
+    direct_only: false
+    max_duration_hours: 14
+    depart_after: "08:00"
+    depart_before: "22:00"
+
+  - name: "Demo — US to Tokyo (economy)"
+    enabled: true
+    push_notifications: true
+    interval_minutes: 30
+    origins:
+      - SFO
+    destinations:
+      - HND
+      - NRT
+    date_range:
+      start: "2026-04-05"
+      end: "2026-04-06"
+    programs:
+      - united
+    cabin: economy
+    max_points: 60000

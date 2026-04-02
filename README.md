@@ -8,9 +8,12 @@ Python service that polls the [seats.aero](https://seats.aero) Partner API on sc
 cd /path/to/reward-seats-alert
 pip install -r requirements.txt
 cp .env.example .env
+cp alerts.example.yaml alerts.yaml
 ```
 
 Edit `.env` with your `SEATS_API_KEY`, notifier credentials, and `FLASK_SECRET`.
+
+**Alerts:** `alerts.yaml` is **gitignored** so your routes stay local. The repo ships **`alerts.example.yaml`** as a starter—copy it as above, or skip that and create alerts only in the web UI (which creates `alerts.yaml` on first save).
 
 ### Where notifications go (Pushover / Telegram)
 
@@ -47,7 +50,8 @@ Open [http://127.0.0.1:5000](http://127.0.0.1:5000) (or the port set in `FLASK_P
 
 | File | Role |
 |------|------|
-| `alerts.yaml` | Alert definitions (safe to commit) |
+| `alerts.example.yaml` | Committed **demo / template** — `cp` to `alerts.yaml` or use as reference |
+| `alerts.yaml` | Your real alert definitions (**gitignored** — not committed) |
 | `seen_results.json` | Deduplication keys `alert_name::trip_id` (gitignored) |
 | `alert_state.json` | Per-alert `last_checked`, `next_run`, `last_triggered`, `total_matches`, `error` (gitignored) |
 | `searcher.py` | Partner search with pagination and ID deduplication |
