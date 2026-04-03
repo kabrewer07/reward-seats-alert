@@ -41,6 +41,49 @@
     line-height: 1.45;
     max-width: 40rem;
   }
+  .program-quick-panel {
+    margin-bottom: 0.65rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0b0d10;
+  }
+  .program-quick-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+  }
+  .program-quick-buttons { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; align-items: center; }
+  .program-quick-buttons .program-filter-label { margin: 0; font-size: 0.82rem; color: var(--text); }
+  .programs-summary {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin: 0 0 0.65rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    max-width: 48rem;
+    line-height: 1.45;
+  }
+  .programs-summary strong { color: var(--text); }
+  #programs-checkboxes.checkboxes {
+    max-height: min(52vh, 28rem);
+    grid-template-columns: 1fr;
+    align-content: start;
+  }
+  @media (min-width: 600px) {
+    #programs-checkboxes.checkboxes {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 1rem;
+    }
+  }
+  #programs-checkboxes .check-item {
+    align-items: flex-start;
+    line-height: 1.35;
+  }
 </style>
 {% endblock %}
 {% block body %}
@@ -95,6 +138,38 @@
   </div>
 
   <div class="row">
+    <p class="form-enabled-heading" style="margin:0 0 0.35rem;">Mileage programs (seats.aero)</p>
+    <p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.65rem;max-width:44rem;">
+      Use bank/alliance boxes to <strong style="color:var(--text);">include</strong> matching programs (unchecking removes programs that were only included via those filters). Programs with no listed transfer partner are only affected by alliance filters or manual checks.
+      Changing a program checkbox below clears these filters. <a href="{{ url_for('transfer_partners') }}">Transfer ratios &amp; full list →</a>
+    </p>
+    {% if bank_quick_picks %}
+    <div class="program-quick-panel">
+      <span class="program-quick-label">Transfer partners (banks)</span>
+      <div class="program-quick-buttons">
+        {% for key, label in bank_quick_picks %}
+        <label class="check-item program-filter-label">
+          <input type="checkbox" class="js-filter-bank" data-bank="{{ key }}">
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if alliance_quick_picks %}
+    <div class="program-quick-panel">
+      <span class="program-quick-label">Alliances</span>
+      <div class="program-quick-buttons">
+        {% for key, label in alliance_quick_picks %}
+        <label class="check-item program-filter-label">
+          <input type="checkbox" class="js-filter-alliance" data-alliance="{{ key }}">
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    <div id="programs-summary" class="programs-summary" aria-live="polite"></div>
     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.35rem;">
       <label style="margin:0;">Programs</label>
       <button type="button" class="btn small" id="programs-select-all">Select all</button>
@@ -104,12 +179,13 @@
       {% set sel = fill.getlist('programs') if fill else ((af.programs or []) if af else []) %}
       {% for p in supported_programs %}
       <label class="check-item">
-        <input type="checkbox" name="programs" value="{{ p }}" {% if p in sel %}checked{% endif %}>
-        {{ p }}
+        <input type="checkbox" name="programs" value="{{ p }}" data-program="{{ p }}" {% if p in sel %}checked{% endif %}>
+        <span><strong>{{ p }}</strong>{% set pl = program_display_labels.get(p, p) %}{% if pl != p %} — {{ pl }}{% endif %}</span>
       </label>
       {% endfor %}
     </div>
   </div>
+  <script type="application/json" id="program-form-meta">{{ program_form_meta | tojson }}</script>
 
   {% if fill %}
   {% set cab_sel = fill.getlist('cabins') %}
@@ -172,17 +248,113 @@
 </form>
 <script>
 (function () {
+  var metaEl = document.getElementById("program-form-meta");
+  var PROGRAM_ROWS = [];
+  try {
+    PROGRAM_ROWS = metaEl ? JSON.parse(metaEl.textContent || "[]") : [];
+  } catch (e) {
+    PROGRAM_ROWS = [];
+  }
+
+  function rowMatchesAlliance(row, key) {
+    if (!row.in_metadata) return false;
+    if (key === "independent") return row.alliance == null;
+    if (row.alliance === key) return true;
+    var b = row.bookable || [];
+    for (var i = 0; i < b.length; i++) {
+      if (b[i] === key) return true;
+    }
+    return false;
+  }
+
+  function labelForSource(src) {
+    for (var i = 0; i < PROGRAM_ROWS.length; i++) {
+      if (PROGRAM_ROWS[i].source === src) return PROGRAM_ROWS[i].mileage_program || src;
+    }
+    return src;
+  }
+
+  function refreshSummary() {
+    var el = document.getElementById("programs-summary");
+    if (!el) return;
+    var box = document.getElementById("programs-checkboxes");
+    if (!box) return;
+    var checked = box.querySelectorAll('input[type="checkbox"][name="programs"]:checked');
+    if (!checked.length) {
+      el.innerHTML = "<strong>Selected:</strong> none";
+      return;
+    }
+    var parts = [];
+    for (var j = 0; j < checked.length; j++) {
+      parts.push(labelForSource(checked[j].value));
+    }
+    el.innerHTML = "<strong>Selected (" + checked.length + "):</strong> " + parts.join(" · ");
+  }
+
+  function computeFilterUnionSet() {
+    var set = new Set();
+    document.querySelectorAll(".js-filter-bank:checked").forEach(function (cb) {
+      var b = cb.getAttribute("data-bank");
+      PROGRAM_ROWS.forEach(function (r) {
+        if ((r.banks || []).indexOf(b) !== -1) set.add(r.source);
+      });
+    });
+    document.querySelectorAll(".js-filter-alliance:checked").forEach(function (cb) {
+      var a = cb.getAttribute("data-alliance");
+      PROGRAM_ROWS.forEach(function (r) {
+        if (rowMatchesAlliance(r, a)) set.add(r.source);
+      });
+    });
+    return set;
+  }
+
+  var oldFilterUnion = new Set();
+
+  function clearProgramFiltersAndOldUnion() {
+    document.querySelectorAll(".js-filter-bank, .js-filter-alliance").forEach(function (cb) {
+      cb.checked = false;
+    });
+    oldFilterUnion = new Set();
+  }
+
+  function syncProgramsFromFilters() {
+    var newU = computeFilterUnionSet();
+    var box = document.getElementById("programs-checkboxes");
+    if (!box) return;
+    box.querySelectorAll('input[type="checkbox"][name="programs"]').forEach(function (inp) {
+      var p = inp.value;
+      if (newU.has(p)) inp.checked = true;
+      else if (oldFilterUnion.has(p)) inp.checked = false;
+    });
+    oldFilterUnion = new Set(newU);
+    refreshSummary();
+  }
+
   var box = document.getElementById("programs-checkboxes");
   if (!box) return;
+
+  document.querySelectorAll(".js-filter-bank, .js-filter-alliance").forEach(function (cb) {
+    cb.addEventListener("change", syncProgramsFromFilters);
+  });
+
   function setAll(checked) {
+    clearProgramFiltersAndOldUnion();
     box.querySelectorAll('input[type="checkbox"][name="programs"]').forEach(function (cb) {
       cb.checked = checked;
     });
+    refreshSummary();
   }
   var sa = document.getElementById("programs-select-all");
   var cl = document.getElementById("programs-clear-all");
   if (sa) sa.addEventListener("click", function () { setAll(true); });
   if (cl) cl.addEventListener("click", function () { setAll(false); });
+  box.querySelectorAll('input[type="checkbox"][name="programs"]').forEach(function (cb) {
+    cb.addEventListener("change", function () {
+      clearProgramFiltersAndOldUnion();
+      refreshSummary();
+    });
+  });
+  refreshSummary();
 })();
 </script>
 {% endblock %}

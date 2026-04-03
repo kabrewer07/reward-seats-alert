@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 import filters as alert_filters
+import program_catalog
 import state
 from jinja2.runtime import Undefined
 from monitor import (
@@ -100,6 +101,18 @@ def alert_cabins_filter(alert):
 @app.template_filter("dashboard_time")
 def dashboard_time_filter(iso_str: str | None) -> str:
     return format_dashboard_time(iso_str) or "—"
+
+
+@app.template_filter("transfer_ratios_cell")
+def transfer_ratios_cell_filter(tr):
+    return program_catalog.format_transfer_cell(tr)
+
+
+@app.template_filter("alliance_cell")
+def alliance_cell_filter(entry):
+    if not isinstance(entry, dict):
+        return "—"
+    return program_catalog.alliance_display(entry)
 
 
 def save_alerts(alerts: list[dict]) -> None:
@@ -224,10 +237,46 @@ def _parse_alert_from_form() -> tuple[dict | None, str | None]:
 
 @app.context_processor
 def inject_constants():
+    fsup = frozenset(SUPPORTED_PROGRAMS)
+    bank_quick = [
+        (k, program_catalog.BANK_LABELS.get(k, k.replace("_", " ").title()))
+        for k in program_catalog.all_transfer_bank_keys()
+        if program_catalog.sources_for_bank(k, fsup)
+    ]
+    alliance_quick = [
+        (k, program_catalog.ALLIANCE_LABELS[k])
+        for k in ("star_alliance", "skyteam", "oneworld", "independent")
+        if program_catalog.sources_for_alliance(k, fsup)
+    ]
+    _pl = program_catalog.display_labels(SUPPORTED_PROGRAMS)
+    programs_alpha = sorted(
+        SUPPORTED_PROGRAMS, key=lambda p: (_pl.get(p, p).lower(), str(p).lower())
+    )
     return {
-        "supported_programs": SUPPORTED_PROGRAMS,
+        "supported_programs": programs_alpha,
         "cabins": CABINS,
+        "program_form_meta": program_catalog.supported_program_rows(SUPPORTED_PROGRAMS),
+        "program_display_labels": program_catalog.display_labels(SUPPORTED_PROGRAMS),
+        "bank_quick_picks": bank_quick,
+        "alliance_quick_picks": alliance_quick,
     }
+
+
+@app.route("/transfer-partners")
+def transfer_partners():
+    banks = program_catalog.all_transfer_bank_keys()
+    bank_option_labels = {
+        k: program_catalog.BANK_LABELS.get(k, k.replace("_", " ").title()) for k in banks
+    }
+    return render_template(
+        "transfer_reference.html",
+        entries=sorted(
+            program_catalog.all_entries(),
+            key=lambda e: (str(e.get("mileage_program") or e.get("source") or "")).lower(),
+        ),
+        filter_banks=banks,
+        bank_option_labels=bank_option_labels,
+    )
 
 
 @app.route("/")

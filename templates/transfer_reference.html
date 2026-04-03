@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Transfer partners — Seats Alert{% endblock %}
+{% block head %}
+<style>
+  .ref-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
+  .ref-toolbar label { margin: 0; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--muted); }
+  .ref-toolbar select { width: auto; min-width: 12rem; }
+  .ref-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table.ref { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  table.ref th, table.ref td { padding: 0.5rem 0.65rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.ref th { color: var(--muted); font-weight: 600; background: #0b0d10; position: sticky; top: 0; }
+  table.ref tr[data-hidden="1"] { display: none; }
+  .ref-note { font-size: 0.8rem; color: var(--muted); margin-top: 1rem; max-width: 48rem; line-height: 1.45; }
+</style>
+{% endblock %}
+{% block body %}
+<h2 style="margin-top:0;font-size:1.1rem;font-weight:600;">Transfer partners & alliances</h2>
+<p style="color:var(--muted);font-size:0.9rem;max-width:42rem;">Reference for transferable points and alliances. Ratios and partners change — confirm with your bank and the loyalty program before transferring.</p>
+
+<div class="ref-toolbar">
+  <label for="bank-filter">Show programs with transfer from</label>
+  <select id="bank-filter" aria-label="Filter by bank">
+    <option value="">All</option>
+    {% for k in filter_banks %}
+    <option value="{{ k }}">{{ bank_option_labels.get(k, k) }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="ref-wrap">
+  <table class="ref" id="ref-table">
+    <thead>
+      <tr>
+        <th>Source (API)</th>
+        <th>Program</th>
+        <th>IATA</th>
+        <th>Alliance</th>
+        <th>Transfer ratios</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      {% set tr = e.get('transfer_ratio') %}
+      {% if tr is mapping %}
+      {% set banks = tr.keys() | list | sort %}
+      {% else %}
+      {% set banks = [] %}
+      {% endif %}
+      <tr class="ref-row" data-banks="{{ banks | join(',') }}">
+        <td><code style="font-size:0.78rem;">{{ e.source }}</code></td>
+        <td>{{ e.mileage_program }}</td>
+        <td>{{ e.airline_code or "—" }}</td>
+        <td>{{ e | alliance_cell }}</td>
+        <td>{{ tr | transfer_ratios_cell }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="ref-note">Alerts only include <strong>seats.aero sources</strong> enabled in this app. Some rows above may not appear on the new-alert form until that source is added to the supported list in code.</p>
+
+<script>
+(function () {
+  var sel = document.getElementById("bank-filter");
+  if (!sel) return;
+  sel.addEventListener("change", function () {
+    var v = sel.value;
+    document.querySelectorAll("tr.ref-row").forEach(function (tr) {
+      var raw = tr.getAttribute("data-banks") || "";
+      var banks = raw ? raw.split(",") : [];
+      if (!v) {
+        tr.setAttribute("data-hidden", "0");
+        return;
+      }
+      tr.setAttribute("data-hidden", banks.indexOf(v) === -1 ? "1" : "0");
+    });
+  });
+})();
+</script>
+{% endblock %}

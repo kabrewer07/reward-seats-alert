@@ -1,0 +1,395 @@
+[
+  {
+    "source": "aerlingus",
+    "mileage_program": "Aer Lingus AerClub",
+    "airline_code": "EI",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1"
+    }
+  },
+  {
+    "source": "aeromexico",
+    "mileage_program": "Aeromexico Rewards",
+    "airline_code": "AM",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "aeroplan",
+    "mileage_program": "Air Canada Aeroplan",
+    "airline_code": "AC",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1",
+      "capital_one": "1:1"
+    }
+  },
+  {
+    "source": "ana",
+    "mileage_program": "ANA Mileage Club",
+    "airline_code": "NH",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "amex": "1:1"
+    }
+  },
+  {
+    "source": "avianca",
+    "mileage_program": "Avianca LifeMiles",
+    "airline_code": "AV",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "britishairways",
+    "mileage_program": "British Airways Executive Club",
+    "airline_code": "BA",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1",
+      "capital_one": "1:1"
+    }
+  },
+  {
+    "source": "cathay",
+    "mileage_program": "Cathay Pacific Asia Miles",
+    "airline_code": "CX",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "delta",
+    "mileage_program": "Delta SkyMiles",
+    "airline_code": "DL",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {
+      "amex": "1:1"
+    }
+  },
+  {
+    "source": "emirates",
+    "mileage_program": "Emirates Skywards",
+    "airline_code": "EK",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "etihad",
+    "mileage_program": "Etihad Guest",
+    "airline_code": "EY",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "flyingblue",
+    "mileage_program": "Flying Blue",
+    "airline_code": "AF/KL",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "hawaiian",
+    "mileage_program": "HawaiianMiles",
+    "airline_code": "HA",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "amex": "1:1"
+    }
+  },
+  {
+    "source": "iberia",
+    "mileage_program": "Iberia Plus",
+    "airline_code": "IB",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1"
+    }
+  },
+  {
+    "source": "jetblue",
+    "mileage_program": "JetBlue TrueBlue",
+    "airline_code": "B6",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "amex": "250:200",
+      "chase": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "qantas",
+    "mileage_program": "Qantas Frequent Flyer",
+    "airline_code": "QF",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "singapore",
+    "mileage_program": "Singapore Airlines KrisFlyer",
+    "airline_code": "SQ",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1",
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "virginatlantic",
+    "mileage_program": "Virgin Atlantic Flying Club",
+    "airline_code": "VS",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {
+      "amex": "1:1",
+      "chase": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "elal",
+    "mileage_program": "El Al Matmid",
+    "airline_code": "LY",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "amex": "1:1"
+    }
+  },
+  {
+    "source": "ita",
+    "mileage_program": "ITA Airways Volare",
+    "airline_code": "AZ",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "amex": "1:1"
+    }
+  },
+  {
+    "source": "southwest",
+    "mileage_program": "Southwest Rapid Rewards",
+    "airline_code": "WN",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {
+      "chase": "1:1"
+    }
+  },
+  {
+    "source": "united",
+    "mileage_program": "United MileagePlus",
+    "airline_code": "UA",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "chase": "1:1"
+    }
+  },
+  {
+    "source": "eva",
+    "mileage_program": "EVA Air Infinity MileageLands",
+    "airline_code": "BR",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "capital_one": "2:1.5",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "finnair",
+    "mileage_program": "Finnair Plus",
+    "airline_code": "AY",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "capital_one": "1:1"
+    }
+  },
+  {
+    "source": "qatar",
+    "mileage_program": "Qatar Airways Privilege Club",
+    "airline_code": "QR",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "tap",
+    "mileage_program": "TAP Miles&Go",
+    "airline_code": "TP",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "capital_one": "1:1"
+    }
+  },
+  {
+    "source": "turkish",
+    "mileage_program": "Turkish Airlines Miles&Smiles",
+    "airline_code": "TK",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "capital_one": "1:1",
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "virginred",
+    "mileage_program": "Virgin Red",
+    "airline_code": "VS",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {
+      "capital_one": "1:1"
+    }
+  },
+  {
+    "source": "thai",
+    "mileage_program": "Thai Airways Royal Orchid Plus",
+    "airline_code": "TG",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "american",
+    "mileage_program": "American Airlines AAdvantage",
+    "airline_code": "AA",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {
+      "citi": "1:1"
+    }
+  },
+  {
+    "source": "alaska",
+    "mileage_program": "Alaska Mileage Plan",
+    "airline_code": "AS",
+    "alliance": "oneworld",
+    "bookable_partner_alliances": ["oneworld"],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "lufthansa",
+    "mileage_program": "Lufthansa Miles & More",
+    "airline_code": "LH",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "eurobonus",
+    "mileage_program": "SAS EuroBonus",
+    "airline_code": "SK",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "velocity",
+    "mileage_program": "Virgin Australia Velocity",
+    "airline_code": "VA",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "connectmiles",
+    "mileage_program": "Copa ConnectMiles",
+    "airline_code": "CM",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "smiles",
+    "mileage_program": "GOL Smiles",
+    "airline_code": "G3",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "azul",
+    "mileage_program": "Azul TudoAzul",
+    "airline_code": "AD",
+    "alliance": null,
+    "bookable_partner_alliances": [],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "ethiopian",
+    "mileage_program": "Ethiopian ShebaMiles",
+    "airline_code": "ET",
+    "alliance": "star_alliance",
+    "bookable_partner_alliances": ["star_alliance"],
+    "transfer_ratio": {}
+  },
+  {
+    "source": "saudia",
+    "mileage_program": "Saudia AlFursan",
+    "airline_code": "SV",
+    "alliance": "skyteam",
+    "bookable_partner_alliances": ["skyteam"],
+    "transfer_ratio": {}
+  }
+]
