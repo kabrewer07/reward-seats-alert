@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 import re
 from datetime import datetime
@@ -145,6 +146,18 @@ def _alert_name_taken(
     return False
 
 
+def _next_duplicate_name(alerts: list[dict], original_name: str) -> str:
+    base = f"{original_name} (copy)"
+    if not _alert_name_taken(alerts, base):
+        return base
+    n = 2
+    while True:
+        candidate = f"{original_name} (copy {n})"
+        if not _alert_name_taken(alerts, candidate):
+            return candidate
+        n += 1
+
+
 def _parse_alert_from_form() -> tuple[dict | None, str | None]:
     name = (request.form.get("name") or "").strip()
     if not name:
@@ -282,6 +295,10 @@ def transfer_partners():
 @app.route("/")
 def index():
     alerts = load_alerts_from_disk()
+    alerts = sorted(
+        alerts,
+        key=lambda a: (not bool(a.get("enabled", True)), str(a.get("name", "")).lower()),
+    )
     st = state.load_alert_state()
     return render_template("dashboard.html", alerts=alerts, alert_state=st)
 
@@ -352,6 +369,21 @@ def alert_edit(name):
         flash("Alert updated.", "ok")
         return redirect(url_for("index"))
     return render_template("alert_form.html", af=existing, fill=None, editing=True)
+
+
+@app.route("/alerts/duplicate/<path:name>", methods=["POST"])
+def alert_duplicate(name):
+    current = load_alerts_from_disk()
+    source = next((a for a in current if str(a.get("name")) == name), None)
+    if source is None:
+        abort(404)
+    dup = copy.deepcopy(source)
+    dup["name"] = _next_duplicate_name(current, str(source.get("name", "")))
+    current.append(dup)
+    save_alerts(current)
+    reload_config()
+    flash(f"Duplicated as “{dup['name']}”.", "ok")
+    return redirect(url_for("index"))
 
 
 @app.route("/alerts/toggle/<path:name>", methods=["POST"])
